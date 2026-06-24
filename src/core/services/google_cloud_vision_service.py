@@ -7,14 +7,14 @@ from src.core.utils.text_utils import clean_quoting
 
 """Obtains paragraphs from a given full text annotation.
 
-    Parses the content of a full text annotation to obtain the paragraphs in the OCR extracted text.
+Parses the content of a full text annotation to obtain the paragraphs in the OCR extracted text.
 
-    Args:
-        full_text_annotation: The full_text_annotation item from an AnnotateImageResponse.
+Args:
+    full_text_annotation: The full_text_annotation item from an AnnotateImageResponse.
 
-    Returns:
-        list: The list of extracted paragraphs. Can be empty.
-    """
+Returns:
+    list: The list of extracted paragraphs. Can be empty.
+"""
 def get_text_paragraphs(full_text_annotation):
     paragraph_content = []
 

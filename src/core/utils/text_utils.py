@@ -2,6 +2,17 @@ import re
 
 quote_characters = {'"', "'"}
 
+"""Cleans quoting spacing from a given word list.
+
+Appends quotes to the right word of the quote if the quoting is being opened,
+and to the left word if the quoting is being closed. 
+
+Args:
+    words: A list of words to be cleaned.
+
+Returns:
+    words: The list of cleaned words.
+"""
 def clean_quoting(words):
     processed_words = []
     opened_quotes = {q: False for q in quote_characters}
@@ -43,7 +54,16 @@ def clean_quoting(words):
     return processed_words
 
 
+"""Cleans punctuation spacing from a given text.
 
+Applies regular expressions to remove extra spaces near different punctuation symbols.
+
+Args:
+    text: The text to be cleaned.
+
+Returns:
+    text: The text after cleaning.
+"""
 def clean_punctuation(text):
     # Remove space before punctuation for any of .,;:!?)]”’»›-
     text = re.sub(r"\s+([.,;:!?)\]”’»›-])", r"\1", text)
