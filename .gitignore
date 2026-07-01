@@ -15,3 +15,7 @@ wheels/
 
 # Credentials
 *credentials.json
+
+# Other
+images/
+llm_data/

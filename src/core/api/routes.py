@@ -1,32 +1,14 @@
-import logging
 from datetime import datetime, timezone
-from pathlib import Path
-from fastapi import APIRouter, File, UploadFile, HTTPException
 
+from fastapi import APIRouter, File, UploadFile, HTTPException
 from src.core.services.google_cloud_vision_service import VisionService, get_text_paragraphs
-from src.core.utils.text_utils import clean_punctuation
-from src.model.information.information_dto import InformationDTO
+from src.core.services.ollama_service import OllamaService
 
 router = APIRouter()
-
-extracted_text_global = None
-content_global = None
 
 @router.get("/")
 async def status():
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
-
-# Testing endpoint to not call the API services everytime one needs the processed data
-@router.get("/test")
-async def test():
-    content = get_text_paragraphs(extracted_text_global)
-
-    global content_global
-    content_global = content
-    processed_result = clean_punctuation("\n".join(content))
-    logging.log(logging.INFO, f"%s", processed_result)
-
-    return {"extracted": processed_result}
 
 @router.post("/transcribe") #, response_model=InformationDTO)
 async def transcribe(
@@ -40,25 +22,22 @@ async def transcribe(
 
     image_content = await photo.read()
 
+    # Obtain text from image
     extracted_text = VisionService().detect_text(image_content)
 
-    if not extracted_text.text:
+    if extracted_text is None or not extracted_text.text:
         raise HTTPException(
             status_code=400,
             detail="No se ha extraido ningún texto de la imagen."
         )
 
-    global extracted_text_global
-    extracted_text_global = extracted_text
-
     content = get_text_paragraphs(extracted_text)
 
-    global content_global
-    content_global = content
+    # Join all text lines together
+    full_text = "\n".join(content_item.text for content_item in content)
 
-    full_text = clean_punctuation("\n".join(content))
-
-    # return full_text
+    # Determine the title of the text
+    title, classified_lines = await OllamaService().classify_lines(content)
 
     raise HTTPException(
         status_code=501,
