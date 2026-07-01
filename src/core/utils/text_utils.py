@@ -2,18 +2,61 @@ import re
 
 quote_characters = {'"', "'"}
 
-"""Cleans quoting spacing from a given word list.
+mid_sentence_words = [
+    # Conjunctions
+    "y", "e", "ni", "o", "u", "pero", "sino", "aunque", "como", "que", "donde", "cuando", "pues",
+    "porque", "si",
+    "and", "or", "nor", "because", "however",
 
-Appends quotes to the right word of the quote if the quoting is being opened,
-and to the left word if the quoting is being closed. 
+    # Prepositions
+    "a", "ante", "bajo", "cabe", "con", "contra", "de", "del", "desde", "durante", "en", "entre", "hacia",
+    "hasta", "mediante", "para", "por", "según", "sin", "so", "sobre", "tras", "versus", "vía",
+    "about", "above", "across", "after", "against", "along", "among", "around", "as", "at", "before",
+    "behind", "below", "beneath", "beside", "besides", "between", "beyond", "but", "by", "despite",
+    "down", "during", "except", "for", "from", "in", "inside", "into", "like", "near", "of", "off",
+    "on", "onto", "opposite", "out", "outside", "over", "past", "through", "throughout", "to",
+    "toward", "towards", "under", "underneath", "until", "up", "with", "within", "without",
 
-Args:
-    words: A list of words to be cleaned.
+    # Articles
+    "el", "la", "los", "las", "su" ,
+    "the", "her", "his"
+]
 
-Returns:
-    words: The list of cleaned words.
-"""
+def has_ended_abruptly(line_end, next_line_start):
+    """Determines whether a line has finished without being complete or not.
+
+    Applies heuristics to determine whether a line has finished without being complete or not based on
+    the last word of this line and the first word of the next line, if any.
+
+    Args:
+        :param line_end: Word that ends the line which has possibly been separated while incomplete.
+        :param next_line_start: First word in the next line, or None if there's no next line.
+
+    Returns:
+        :return abrupt: True if the line has ended abruptly, False otherwise.
+    """
+    if next_line_start is None:
+        return False
+
+    ends_with_comma = line_end.endswith(',')
+    continues_with_lowercase = next_line_start.islower()
+    continues_semantically = line_end in mid_sentence_words or next_line_start in mid_sentence_words
+
+    return ends_with_comma or continues_with_lowercase or continues_semantically
+
+
 def clean_quoting(words):
+    """Cleans quoting spacing from a given word list.
+
+    Appends quotes to the right word of the quote if the quoting is being opened,
+    and to the left word if the quoting is being closed.
+
+    Args:
+        :param words: A list of words to be cleaned.
+
+    Returns:
+        :return words: The list of cleaned words.
+    """
     processed_words = []
     opened_quotes = {q: False for q in quote_characters}
     i = 0
@@ -54,17 +97,18 @@ def clean_quoting(words):
     return processed_words
 
 
-"""Cleans punctuation spacing from a given text.
 
-Applies regular expressions to remove extra spaces near different punctuation symbols.
-
-Args:
-    text: The text to be cleaned.
-
-Returns:
-    text: The text after cleaning.
-"""
 def clean_punctuation(text):
+    """Cleans punctuation spacing from a given text.
+
+    Applies regular expressions to remove extra spaces near different punctuation symbols.
+
+    Args:
+        :param text: The text to be cleaned.
+
+    Returns:
+        :return text: The text after cleaning.
+    """
     # Remove space before punctuation for any of .,;:!?)]”’»›-
     text = re.sub(r"\s+([.,;:!?)\]”’»›-])", r"\1", text)
     # Remove space after opening punctuation for ({[“‘«‹-
