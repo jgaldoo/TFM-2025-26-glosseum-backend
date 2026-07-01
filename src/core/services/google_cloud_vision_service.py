@@ -13,13 +13,17 @@ def calculate_page_ratios(page_width, page_height, bounding_box):
     Calculates the x, y, width and height ratios of a bounding box respective to the total
     width and height of a page. Assumes the bounding box is a box with 4 vertices.
 
-    Args:
         :param page_width: The page width.
-        :param page_height: The page height.
-        :param bounding_box: A list with 4 vertices.
+        :type page_width: int
 
-    Returns:
-        :return geometry: A dict with the mentioned ratios
+        :param page_height: The page height.
+        :type page_height: int
+
+        :param bounding_box: A list with 4 vertices.
+        :type bounding_box: list[Vertex]
+
+        :returns geometry: A dict with the mentioned ratios
+        :rtype: dict
     """
 
     xs = [v.x for v in bounding_box]
@@ -53,11 +57,11 @@ def get_text_paragraphs(full_text_annotation):
 
     Parses the content of a full text annotation to obtain the paragraphs in the OCR extracted text.
 
-    Args:
         :param full_text_annotation: The full_text_annotation item from an AnnotateImageResponse.
+        :type full_text_annotation: TextAnnotation
 
-    Returns:
-        :return list: The list of extracted paragraphs. Can be empty.
+        :returns list: The list of extracted paragraphs. Can be empty.
+        :rtype: list[dict]
     """
     paragraph_content = []
     lines = []
@@ -169,11 +173,12 @@ class VisionService:
         Calls the associated Google Cloud Vision API endpoint to detect text in an image
         and extract it through OCR.
 
-        Args:
             :param image_content: The raw bytes of the image to process.
+            :type image_content: bytes
 
-        Returns:
-            :return full_text_annotation: The list of extracted text annotations (TextAnnotation class), or None if no text was extracted.
+            :returns full_text_annotation: The list of extracted text annotations (TextAnnotation class),
+                or None if no text was extracted.
+            :rtype: TextAnnotation
         """
         # Despite IDE expecting dicts, AnnotateImageRequest accepts protobuf format
         request = AnnotateImageRequest(
