@@ -28,12 +28,14 @@ def has_ended_abruptly(line_end, next_line_start):
     Applies heuristics to determine whether a line has finished without being complete or not based on
     the last word of this line and the first word of the next line, if any.
 
-    Args:
         :param line_end: Word that ends the line which has possibly been separated while incomplete.
-        :param next_line_start: First word in the next line, or None if there's no next line.
+        :type line_end: str
 
-    Returns:
+        :param next_line_start: First word in the next line, or None if there's no next line.
+        :type next_line_start: str
+
         :return abrupt: True if the line has ended abruptly, False otherwise.
+        :rtype: bool
     """
     if next_line_start is None:
         return False
@@ -51,11 +53,11 @@ def clean_quoting(words):
     Appends quotes to the right word of the quote if the quoting is being opened,
     and to the left word if the quoting is being closed.
 
-    Args:
         :param words: A list of words to be cleaned.
+        :type words: list[str]
 
-    Returns:
         :return words: The list of cleaned words.
+        :rtype: list[str]
     """
     processed_words = []
     opened_quotes = {q: False for q in quote_characters}
@@ -103,11 +105,11 @@ def clean_punctuation(text):
 
     Applies regular expressions to remove extra spaces near different punctuation symbols.
 
-    Args:
         :param text: The text to be cleaned.
+        :type text: str
 
-    Returns:
         :return text: The text after cleaning.
+        :rtype: str
     """
     # Remove space before punctuation for any of .,;:!?)]”’»›-
     text = re.sub(r"\s+([.,;:!?)\]”’»›-])", r"\1", text)

@@ -154,13 +154,15 @@ class OllamaService:
         )
 
 
-    async def tiebreak_titles(self, titles: List[InformationLine], lines):
-        """Classify text lines.
+    async def tiebreak_titles(self, titles, lines):
+        """Order title candidates according to their likelihood to be the real title.
 
-        Run an agent to classify text lines into the different categories represented by InformationLabel
+        Run an agent to order title candidates according to their likelihood to be the real title of a text
+        from a given list of title candidates, all from the same text.
 
-        Args:
             :param titles: A list of InformationLine objects that are candidates to be a title.
+            :type titles: List[InformationLine]
+
             :param lines: A list of text lines to classify of the form
                 [
                     {
@@ -176,9 +178,10 @@ class OllamaService:
                     },
                     ...
                 ]
+            :type lines: list[dict]
 
-        Returns:
-            :return confidence_results: A list of TitleCandidateLine objects.
+            :returns confidence_results: A list of TitleCandidateLine objects.
+            :rtype: list[TitleCandidateLine]
         """
         title_candidates = [json.dumps({
             "block_id": lines[candidate.id]["block_id"],
@@ -200,8 +203,7 @@ class OllamaService:
 
         Run an agent to classify text lines into the different categories represented by InformationLabel
 
-        Args:
-            :param lines: A list of text lines to classify of the form
+            :param lines: A list of text lines to classify of the form:
                 [
                     {
                         "block_id":int
@@ -215,11 +217,12 @@ class OllamaService:
                     },
                     ...
                 ]
+            :type lines: list[Dict]
 
-        Returns:
-            :return title: The best title candidate found from the text lines given, or "Desconocido"
-            :return classified_lines: A list of EnrichedInformationLine objects with the lines retrieved
-            after classification.
+            :returns title: The best title candidate found from the text lines given, or "Desconocido"
+                classified_lines: A list of EnrichedInformationLine objects with the lines retrieved \
+                after classification.
+            :rtype: tuple[str, list[EnrichedInformationLine]]
         """
         indexed_lines = [json.dumps({"id": i, "text": line["text"],
                                           "geometry": line["geometry"]}) for i, line in enumerate(lines)]
