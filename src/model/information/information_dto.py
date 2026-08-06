@@ -8,6 +8,6 @@ class InformationType(str, Enum):
 
 class InformationDTO(BaseModel):
     title: str
-    informationType: InformationType
-    isSimplified: bool
+    information_type: InformationType
+    is_simplified: bool
     content: str

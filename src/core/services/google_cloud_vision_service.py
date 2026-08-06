@@ -163,7 +163,7 @@ class VisionService:
             credentials=service_account.Credentials.from_service_account_file(
                 settings.google_cloud_vision_api_credentials
             ),
-            client_options={"api_endpoint": "eu-vision.googleapis.com"}
+            client_options={"api_endpoint": settings.google_cloud_vision_api_endpoint   }
         )
 
 
