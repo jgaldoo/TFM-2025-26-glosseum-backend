@@ -1,17 +1,12 @@
+
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
-
-import json
-import time
-from typing import List
 
 from fastapi import APIRouter, File, UploadFile, HTTPException
-from google.cloud.vision_v1 import TextAnnotation
-from proto import Message
+from starlette.responses import StreamingResponse
 
 from src.core.agents.chat_manager import ChatManager, ChatMessage
-from src.core.config import settings
+from src.core.services import gemini_service
 from src.core.services.gemini_service import GeminiService
 from src.core.services.google_cloud_vision_service import VisionService, get_text_paragraphs
 from src.core.services.ollama_service import OllamaService, AgentType
@@ -21,13 +16,10 @@ from src.model.information.chat_session.chat_session_model import (
     ChatSessionDTO,
     ChatMessageDTO,
     ChatRole,
+    ChatMessageStreamDTO, StreamSequence,
 )
 from src.model.information.information_dto import InformationDTO, InformationType
-from src.model.information.information_model import (
-    InformationLabel,
-    EnrichedInformationLine,
-    EnrichedTitleCandidateLine,
-)
+from src.model.information.information_model import InformationLabel
 
 router = APIRouter()
 
@@ -37,7 +29,7 @@ chat_manager = ChatManager()
 async def status():
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
-@router.post("/transcribe") #, response_model=InformationDTO)
+@router.post("/transcribe", response_model=InformationDTO)
 async def transcribe(
     photo: UploadFile = File(...),
 ):
@@ -79,7 +71,7 @@ async def transcribe(
     return information_dto
 
 
-@router.post("/create-session")
+@router.post("/create-session", response_model=ChatSessionDTO)
 async def create_session(
     session_creation_request: SessionCreationRequest
 ):
@@ -87,7 +79,17 @@ async def create_session(
 
     return ChatSessionDTO(
         session_id=session_id,
-        history=chat_session.history
+        history=list(
+            map(
+                lambda message : ChatMessageDTO(
+                    role=message.role,
+                    content=message.content,
+                    timestamp=message.timestamp,
+                    metadata=message.metadata
+                ),
+                chat_session.history
+            )
+        )
     )
 
 @router.post("/chat/{session_id}")
@@ -115,4 +117,93 @@ async def ask_question(
         timestamp=response.timestamp,
         metadata=response.metadata
     )
-    
+
+@router.post("/chat_stream/{session_id}", response_model=ChatMessageStreamDTO)
+async def stream_ask_question(
+        session_id: str,
+        chat_request: ChatRequest,
+    ):
+        chat_session = chat_manager.get_session(session_id)
+
+        if chat_session is None:
+            raise HTTPException(
+                status_code=404, detail="No se ha encontrado una sesión con ese id."
+            )
+
+        """
+        user_message = ChatMessage(role=ChatRole.USER, content=chat_request.message)
+        chat_session.add_message(user_message)
+
+        model_message = ""
+
+        yield ChatMessageStreamDTO(
+            stream=StreamSequence.START,
+            role=ChatRole.MODEL,
+            timestamp=datetime.now()
+        )
+
+        for chunk in chat_request.message:
+            model_message += chunk
+
+            yield ChatMessageStreamDTO(
+                stream=StreamSequence.START,
+                content=chunk
+            )
+
+        yield ChatMessageStreamDTO(stream=StreamSequence.END)
+        """
+
+        return StreamingResponse(
+            ndjson_stream(chat_stream(session_id, chat_request)), #Error here
+            media_type="application/x-ndjson",
+        )
+
+async def chat_stream(session_id: str, chat_request: ChatRequest):
+    chat_session = chat_manager.get_session(session_id)
+
+    if chat_session is None:
+        yield {"stream": "error", "detail": "Session not found"}
+        return
+
+    user_message = ChatMessage(
+        role=ChatRole.USER,
+        content=chat_request.message
+    )
+    chat_session.add_message(user_message)
+
+    # First message sent to Flutter
+    yield ChatMessageStreamDTO(
+        stream=StreamSequence.START,
+        role=ChatRole.MODEL,
+        timestamp=datetime.now()
+    )
+
+    model_message = ""
+
+    # Start streaming here
+    for chunk in (gemini_service.GeminiService()
+            .chat_stream(chat_session, chat_request.message)):
+        model_message += chunk
+
+        yield ChatMessageStreamDTO(
+            stream=StreamSequence.CHUNK,
+            content=chunk
+        )
+
+    chat_session.add_message(
+        ChatMessage(
+            role=ChatRole.MODEL,
+            content=model_message,
+        )
+    )
+
+    yield ChatMessageStreamDTO(
+        stream=StreamSequence.END
+    )
+
+
+async def ndjson_stream(stream):
+    async for event in stream:
+        processed_event = event.model_dump_json() + "\n"
+        logging.log(logging.INFO, processed_event)
+        yield processed_event
