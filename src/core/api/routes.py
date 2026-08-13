@@ -1,12 +1,11 @@
-
 import logging
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from starlette.responses import StreamingResponse
 
 from src.core.agents.chat_manager import ChatManager, ChatMessage
-from src.core.services import gemini_service
 from src.core.services.gemini_service import GeminiService
 from src.core.services.google_cloud_vision_service import VisionService, get_text_paragraphs
 from src.core.services.ollama_service import OllamaService, AgentType
@@ -20,9 +19,17 @@ from src.model.information.chat_session.chat_session_model import (
 )
 from src.model.information.information_dto import InformationDTO, InformationType
 from src.model.information.information_model import InformationLabel
+from src.model.technicism.technicism_dto import technicism_to_DTO
 
 router = APIRouter()
+log = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
 
+gemini_service = GeminiService()
+ollama_service = OllamaService()
 chat_manager = ChatManager()
 
 @router.get("/")
@@ -40,9 +47,17 @@ async def transcribe(
         )
 
     image_content = await photo.read()
-
+    
+    total_time = 0
+    start_time = time.perf_counter()
+    
     # Obtain text from image
     extracted_text = VisionService().detect_text(image_content)
+    
+    end_time = time.perf_counter()
+    time_taken = end_time - start_time
+    log.debug(f"Text extraction: {time_taken}s")
+    total_time += time_taken
 
     if extracted_text is None or len(extracted_text.text) == 0:
         raise HTTPException(
@@ -50,23 +65,54 @@ async def transcribe(
             detail="No se ha extraido ningún texto de la imagen."
         )
 
+    start_time = time.perf_counter()
+    
     content = get_text_paragraphs(extracted_text)
+    
+    end_time = time.perf_counter()
+    time_taken = end_time - start_time
+    log.debug(f"Paragraph parsing: {time_taken}s")
+    total_time += time_taken
 
+    start_time = time.perf_counter()
 
     # Determine the title of the text
-    title, classified_lines = await OllamaService().agent_fleet.get(AgentType.CLASSIFICATION).classify_lines(content)
+    title, classified_lines = await ollama_service.agent_fleet.get(AgentType.CLASSIFICATION).classify_lines(content)
 
-    inventory_text = [line.text for line in classified_lines if line.label == InformationLabel.INVENTORY]
+    non_content_text = [
+        line.text for line in classified_lines if
+        line.label == InformationLabel.INVENTORY or line.label == InformationLabel.TITLE
+    ]
 
     # Join all text lines together ignoring inventory
-    full_text = "\n\n".join(content_item["text"] for content_item in content if content_item["text"] not in inventory_text)
+    full_text = "\n\n".join(content_item["text"] for content_item in content if content_item["text"] not in non_content_text)
+
+    end_time = time.perf_counter()
+    time_taken = end_time - start_time
+    log.debug(f"Text classification: {time_taken}s")
+    total_time += time_taken
+
+    start_time = time.perf_counter()
+
+    # Identify technicisms obtained from the text
+    text_technicisms = await ollama_service.agent_fleet.get(AgentType.TECHNICISM).get_technicisms(full_text)
+
+    end_time = time.perf_counter()
+    time_taken = end_time - start_time
+    log.debug(f"Technicism identification: {time_taken}s")
+    total_time += time_taken
+
+    log.info(f"Transcribe time: {total_time}s")
 
     information_dto = InformationDTO(
         title=title,
         content=full_text,
+        technicisms=list(map(technicism_to_DTO, text_technicisms)),
         information_type=InformationType.transcribed,
         is_simplified=False
     )
+
+    log.info(f"InformationDTO: {information_dto.model_dump_json()}")
 
     return information_dto
 
@@ -181,7 +227,7 @@ async def chat_stream(session_id: str, chat_request: ChatRequest):
     model_message = ""
 
     # Start streaming here
-    for chunk in (gemini_service.GeminiService()
+    for chunk in (gemini_service
             .chat_stream(chat_session, chat_request.message)):
         model_message += chunk
 
