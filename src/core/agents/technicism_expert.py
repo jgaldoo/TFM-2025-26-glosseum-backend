@@ -93,44 +93,6 @@ def match_occurrences(
 
         occurrence.position = positions[col]
 
-"""
-def resolve_occurrences(text, form, positions, confidence):
-    matches = list(
-        re.finditer(
-            rf"\b{re.escape(form)}\b",
-            text,
-            re.IGNORECASE,
-        )
-    )
-
-    used = set()
-    resolved = []
-
-    for position in positions:
-        # Find candidates that haven't already been claimed.
-        candidates = [
-            match for i, match in enumerate(matches)
-            if i not in used
-        ]
-
-        if len(candidates) != 0:
-            match = min(
-                candidates,
-                key=lambda m: abs(m.start() - position),
-            )
-
-            index = matches.index(match)
-            used.add(index)
-
-            resolved.append(TechnicismOccurrence(
-                form=match.group(),
-                position=match.start(),
-                confidence=confidence,
-            ))
-
-    return resolved
-"""
-
 class TechnicismExpert:
     def __init__(self, ollama_model):
         self.technicism_agent = Agent(
