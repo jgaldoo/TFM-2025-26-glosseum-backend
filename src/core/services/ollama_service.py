@@ -6,6 +6,7 @@ from pydantic_ai import Agent, NativeOutput, ModelSettings
 from pydantic_ai.models.ollama import OllamaModel
 from pydantic_ai.providers.ollama import OllamaProvider
 
+from src.core.agents.technicism_expert import TechnicismExpert
 from src.core.agents.title_classifier import TitleClassifier
 from src.core.config import settings
 
@@ -24,4 +25,5 @@ class OllamaService:
 
         self.agent_fleet = {
             AgentType.CLASSIFICATION: TitleClassifier(ollama_model),
+            AgentType.TECHNICISM: TechnicismExpert(ollama_model),
         }
