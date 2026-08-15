@@ -16,3 +16,7 @@ class Technicism(BaseModel):
     canonical_name: str
     definitions: List[Definition]
     occurrences: List[TechnicismOccurrence]
+
+class TechnicismTextInput(BaseModel):
+    title: str
+    text: str

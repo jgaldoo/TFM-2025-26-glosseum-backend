@@ -8,7 +8,11 @@ from pydantic import TypeAdapter
 from pydantic_ai import Agent, NativeOutput, ModelSettings
 
 from src.model.information.information_model import InformationLine
-from src.model.technicism.technicism_model import Technicism, TechnicismOccurrence
+from src.model.technicism.technicism_model import (
+    Technicism,
+    TechnicismOccurrence,
+    TechnicismTextInput,
+)
 
 # Prompt to identify technicisms and domains within a text
 technicism_expert_prompt = """
@@ -20,13 +24,20 @@ Un tecnicismo es:
 - Una palabra cuyo significado depende del conocimiento del dominio en el que se utilice.
 - Una palabra compleja que pueda no conocer una persona experimentada en el dominio de conocimiento en el que se menciona.
 
-Recibirás un texto hablando de un tema en específico. Tu tarea es devolver una lista de los tecnicismos
-encontrados, junto con el nombre canónico (la forma básica escrita) del tecnicismo. Cada tecnicismo encontrado posee
+Recibirás un título y un texto hablando de un tema en específico siguiendo este formato: 
+{
+    "title": str,
+    "text": str,
+}
+
+Tu tarea es devolver una lista de los tecnicismos encontrados únicamente en el texto,
+ junto con el nombre canónico (la forma básica escrita) del tecnicismo. Cada tecnicismo encontrado posee
 una lista de definiciones asociada, con la definicion y el dominio de la definición
 (arte, poesía, informática, biología, historia, etc.). Cada tecnicismo encontrado también posee una lista de sus
 apariciones en el texto, que incluyen el tecnicismo, el índice de su posición de inicio en el texto, y cómo de seguro
 estás de que esa palabra esté asociada al tecnicismo al que relacionas. Todo esto debe estar en el mismo idioma
 en el que está el texto.
+
 
 Reglas:
 1. Analiza el texto primero, y luego identifica los tecnicismos.
@@ -93,6 +104,32 @@ def match_occurrences(
 
         occurrence.position = positions[col]
 
+def annotate_technicisms(text: str, technicisms) -> str:
+    replacements = []
+
+    for technicism in technicisms:
+        for occurrence in technicism.occurrences:
+            start = occurrence.position
+            value = occurrence.form
+
+            replacements.append(
+                (
+                    start,
+                    start + len(value),
+                    f"[[|{value}|]]",
+                )
+            )
+
+    # Replace from right to left so positions remain valid.
+    for start, end, replacement in sorted(
+        replacements,
+        key=lambda x: x[0],
+        reverse=True,
+    ):
+        text = text[:start] + replacement + text[end:]
+
+    return text
+
 class TechnicismExpert:
     def __init__(self, ollama_model):
         self.technicism_agent = Agent(
@@ -102,9 +139,9 @@ class TechnicismExpert:
             model_settings=ModelSettings(temperature=0.3),
         )
 
-    async def get_technicisms(self, text) -> List[Technicism]:
+    async def get_technicisms(self, technicism_input: TechnicismTextInput) -> List[Technicism]:
         result = await self.technicism_agent.run(
-            text
+            technicism_input.model_dump_json()
         )
 
         technicisms = result.output
@@ -123,7 +160,7 @@ class TechnicismExpert:
 
         # Determine if there's any occurrences for each form
         for form, occurrences in grouped.items():
-            positions = [match.start() for match in re.finditer(rf"\b{re.escape(form)}\b", text, re.IGNORECASE)]
+            positions = [match.start() for match in re.finditer(rf"\b{re.escape(form)}\b", technicism_input.text, re.IGNORECASE)]
 
             if len(positions) != 0:
                 positions.sort()

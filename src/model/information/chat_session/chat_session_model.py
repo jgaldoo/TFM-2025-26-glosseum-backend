@@ -5,10 +5,8 @@ from typing import List
 from pydantic import BaseModel
 from datetime import datetime as datetime_type
 
-class StreamSequence(str, Enum):
-    START = "start"
-    CHUNK = "chunk"
-    END = "end"
+from src.model.common.stream_dto import StreamSequence
+
 
 class ChatRole(str, Enum):
     USER = "user"

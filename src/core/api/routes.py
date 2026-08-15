@@ -6,6 +6,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException
 from starlette.responses import StreamingResponse
 
 from src.core.agents.chat_manager import ChatManager, ChatMessage
+from src.core.agents.technicism_expert import annotate_technicisms
 from src.core.services.gemini_service import GeminiService
 from src.core.services.google_cloud_vision_service import VisionService, get_text_paragraphs
 from src.core.services.ollama_service import OllamaService, AgentType
@@ -17,9 +18,11 @@ from src.model.information.chat_session.chat_session_model import (
     ChatRole,
     ChatMessageStreamDTO, StreamSequence,
 )
-from src.model.information.information_dto import InformationDTO, InformationType
+from src.model.information.information_dto import InformationDTO, InformationType, InformationSimplificationRequest, \
+    InformationStreamDTO
 from src.model.information.information_model import InformationLabel
 from src.model.technicism.technicism_dto import technicism_to_DTO
+from src.model.technicism.technicism_model import TechnicismTextInput
 
 router = APIRouter()
 log = logging.getLogger(__name__)
@@ -95,7 +98,8 @@ async def transcribe(
     start_time = time.perf_counter()
 
     # Identify technicisms obtained from the text
-    text_technicisms = await ollama_service.agent_fleet.get(AgentType.TECHNICISM).get_technicisms(full_text)
+    text_technicisms = await (ollama_service.agent_fleet.get(AgentType.TECHNICISM)
+                              .get_technicisms(TechnicismTextInput(title=title, text=full_text)))
 
     end_time = time.perf_counter()
     time_taken = end_time - start_time
@@ -106,7 +110,7 @@ async def transcribe(
 
     information_dto = InformationDTO(
         title=title,
-        content=full_text,
+        content=annotate_technicisms(full_text, text_technicisms),
         technicisms=list(map(technicism_to_DTO, text_technicisms)),
         information_type=InformationType.transcribed,
         is_simplified=False
@@ -176,33 +180,57 @@ async def stream_ask_question(
                 status_code=404, detail="No se ha encontrado una sesión con ese id."
             )
 
-        """
-        user_message = ChatMessage(role=ChatRole.USER, content=chat_request.message)
-        chat_session.add_message(user_message)
-
-        model_message = ""
-
-        yield ChatMessageStreamDTO(
-            stream=StreamSequence.START,
-            role=ChatRole.MODEL,
-            timestamp=datetime.now()
-        )
-
-        for chunk in chat_request.message:
-            model_message += chunk
-
-            yield ChatMessageStreamDTO(
-                stream=StreamSequence.START,
-                content=chunk
-            )
-
-        yield ChatMessageStreamDTO(stream=StreamSequence.END)
-        """
-
         return StreamingResponse(
-            ndjson_stream(chat_stream(session_id, chat_request)), #Error here
+            ndjson_stream(chat_stream(session_id, chat_request)),
             media_type="application/x-ndjson",
         )
+
+@router.post("/simplify_stream")
+async def simplify_text(
+    information_simplification_request: InformationSimplificationRequest
+):
+    return StreamingResponse(
+            ndjson_stream(
+                simplify_stream(information_simplification_request)
+            ),
+            media_type="application/x-ndjson",
+        )
+
+async def simplify_stream(information_simplification_request: InformationSimplificationRequest):
+    full_text=""
+
+    # First message sent to Flutter
+    yield InformationStreamDTO(
+        stream=StreamSequence.START,
+        content=""
+    )
+
+    async for chunk in ollama_service.agent_fleet.get(AgentType.SIMPLIFICATION).simplify(
+        information_simplification_request
+    ):
+        full_text += chunk
+
+        yield InformationStreamDTO(
+            stream=StreamSequence.CHUNK,
+            content=chunk
+        )
+
+    technicism_list = await (ollama_service.agent_fleet.get(AgentType.TECHNICISM)
+                .get_technicisms(
+                    TechnicismTextInput(title=information_simplification_request.title, text=full_text)
+                )
+            )
+
+    yield InformationStreamDTO(
+        stream=StreamSequence.CHUNK,
+        content=annotate_technicisms(full_text, technicism_list),
+        technicisms=list(map(technicism_to_DTO, technicism_list))
+    )
+
+    yield InformationStreamDTO(
+        stream=StreamSequence.END,
+        is_simplified=True
+    )
 
 async def chat_stream(session_id: str, chat_request: ChatRequest):
     chat_session = chat_manager.get_session(session_id)

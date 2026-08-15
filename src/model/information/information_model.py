@@ -31,3 +31,6 @@ class InformationLine(BaseModel):
 class EnrichedInformationLine(BaseModel):
     text: str
     label: InformationLabel
+
+class SimplifiedInformation(BaseModel):
+    text: str
