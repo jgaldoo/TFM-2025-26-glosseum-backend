@@ -7,8 +7,12 @@ from src.model.common.stream_dto import StreamSequence
 from src.model.technicism.technicism_dto import TechnicismDTO
 
 class InformationType(str, Enum):
-    generated = "generated"
-    transcribed = "transcribed"
+    GENERATED = "generated"
+    TRANSCRIBED = "transcribed"
+
+class InformationStreamProgress(str, Enum):
+    SIMPLIFYING = "simplifying"
+    FINDING_TECHNICISMS = "finding_technicisms"
 
 class InformationDTO(BaseModel):
     title: str
@@ -19,6 +23,7 @@ class InformationDTO(BaseModel):
 
 class InformationStreamDTO(BaseModel):
     stream: StreamSequence
+    stream_info: InformationStreamProgress | None = None
     is_simplified: bool | None = None
     content: str | None = None
     technicisms: List[TechnicismDTO] | None = None

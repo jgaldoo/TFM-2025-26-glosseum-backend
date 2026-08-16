@@ -79,6 +79,7 @@ No inventes ningún tecnismo.
 def match_occurrences(
     occurrences : list,
     positions : list,
+    unresolved: list,
 ):
     occurrence_positions = np.array(
         [occurrence.position for _, occurrence in occurrences]
@@ -96,13 +97,21 @@ def match_occurrences(
     for row, col in zip(row_indices, col_indices):
         distance = costs[row, col]
 
-        # omit non assigned instances
+        # Omit non assigned instances
         if not np.isfinite(distance):
             continue
 
         _, occurrence = occurrences[row]
 
         occurrence.position = positions[col]
+
+    # Remove all non-matched occurrences
+    unresolved.extend([
+        occurrence
+        for i, (_, occurrence) in enumerate(occurrences)
+        if i not in row_indices
+    ])
+
 
 def annotate_technicisms(text: str, technicisms) -> str:
     replacements = []
@@ -129,6 +138,7 @@ def annotate_technicisms(text: str, technicisms) -> str:
         text = text[:start] + replacement + text[end:]
 
     return text
+
 
 class TechnicismExpert:
     def __init__(self, ollama_model):
@@ -166,7 +176,7 @@ class TechnicismExpert:
                 positions.sort()
                 occurrences.sort(key=lambda x: x[1].position)
 
-                match_occurrences(occurrences, positions)
+                match_occurrences(occurrences, positions, unresolved)
             else:
                 unresolved.extend([occurrence for _, occurrence in occurrences])
 

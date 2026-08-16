@@ -19,7 +19,7 @@ from src.model.information.chat_session.chat_session_model import (
     ChatMessageStreamDTO, StreamSequence,
 )
 from src.model.information.information_dto import InformationDTO, InformationType, InformationSimplificationRequest, \
-    InformationStreamDTO
+    InformationStreamDTO, InformationStreamProgress
 from src.model.information.information_model import InformationLabel
 from src.model.technicism.technicism_dto import technicism_to_DTO
 from src.model.technicism.technicism_model import TechnicismTextInput
@@ -112,7 +112,7 @@ async def transcribe(
         title=title,
         content=annotate_technicisms(full_text, text_technicisms),
         technicisms=list(map(technicism_to_DTO, text_technicisms)),
-        information_type=InformationType.transcribed,
+        information_type=InformationType.TRANSCRIBED,
         is_simplified=False
     )
 
@@ -202,6 +202,7 @@ async def simplify_stream(information_simplification_request: InformationSimplif
     # First message sent to Flutter
     yield InformationStreamDTO(
         stream=StreamSequence.START,
+        stream_info=InformationStreamProgress.SIMPLIFYING,
         content=""
     )
 
@@ -212,8 +213,14 @@ async def simplify_stream(information_simplification_request: InformationSimplif
 
         yield InformationStreamDTO(
             stream=StreamSequence.CHUNK,
+            stream_info=InformationStreamProgress.SIMPLIFYING,
             content=chunk
         )
+
+    yield InformationStreamDTO(
+        stream=StreamSequence.CHUNK,
+        stream_info=InformationStreamProgress.FINDING_TECHNICISMS
+    )
 
     technicism_list = await (ollama_service.agent_fleet.get(AgentType.TECHNICISM)
                 .get_technicisms(
