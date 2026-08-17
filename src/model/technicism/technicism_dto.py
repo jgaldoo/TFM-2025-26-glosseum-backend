@@ -15,7 +15,6 @@ class DefinitionDTO(BaseModel):
 
 class TechnicismOccurrenceDTO(BaseModel):
     form: str
-    position: int
 
 class TechnicismDTO(BaseModel):
     canonical_name: str
@@ -32,7 +31,6 @@ def definition_to_DTO(definition: Definition) -> DefinitionDTO:
 def technicism_occurrence_to_DTO(technicism_occurrence: TechnicismOccurrence) -> TechnicismOccurrenceDTO:
     return TechnicismOccurrenceDTO(
         form=technicism_occurrence.form,
-        position=technicism_occurrence.position,
     )
 
 def technicism_to_DTO(technicism : Technicism) -> TechnicismDTO:
