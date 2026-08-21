@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.idea/inspectionProfiles
+
+# Virtual environments
+.venv
+
+# Environment variables
+.env
+
+# Credentials
+*credentials.json
+
+# Other
+images/
+llm_data/

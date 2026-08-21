@@ -1,0 +1,19 @@
+[project]
+name = "glosseum-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.136.3",
+    "google-cloud-vision>=3.15.0",
+    "numpy>=2.5.2",
+    "pydantic>=2.13.4",
+    "pydantic-ai>=2.0.0",
+    "scipy>=1.18.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.20",
+]
