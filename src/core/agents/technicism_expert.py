@@ -119,23 +119,19 @@ def annotate_technicisms(text: str, technicisms) -> str:
     for technicism in technicisms:
         for occurrence in technicism.occurrences:
             start = occurrence.position
-            value = occurrence.form
+            end = start + len(occurrence.form)
+            value = text[start:end]
+            occurrence.form = value
 
-            replacements.append(
-                (
-                    start,
-                    start + len(value),
-                    f"[[|{value}|]]",
-                )
-            )
+            replacements.append((start,end))
 
     # Replace from right to left so positions remain valid.
-    for start, end, replacement in sorted(
+    for start, end in sorted(
         replacements,
         key=lambda x: x[0],
         reverse=True,
     ):
-        text = text[:start] + replacement + text[end:]
+        text = text[:start] + f"[[|{text[start:end]}|]]" + text[end:]
 
     return text
 
