@@ -147,7 +147,7 @@ class TitleClassifier:
 
         self.tiebreaker_agent = Agent(
             ollama_model,
-            output_type=NativeOutput(List[TitleCandidateLine]),
+            output_type=NativeOutput(List[InformationLine]),
             system_prompt=tiebreaker_prompt,
             model_settings=ModelSettings(temperature=0.3),
         )
