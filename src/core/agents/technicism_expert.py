@@ -7,6 +7,7 @@ from scipy.optimize import linear_sum_assignment
 from pydantic import TypeAdapter
 from pydantic_ai import Agent, NativeOutput, ModelSettings
 
+from model.technicism.technicism_model import Technicism
 from src.model.information.information_model import InformationLine
 from src.model.technicism.technicism_model import (
     Technicism,
@@ -120,18 +121,18 @@ def annotate_technicisms(text: str, technicisms) -> str:
         for occurrence in technicism.occurrences:
             start = occurrence.position
             end = start + len(occurrence.form)
-            value = text[start:end]
+            value = text[start:end].replace('\n\n','\n')
             occurrence.form = value
 
-            replacements.append((start,end))
+            replacements.append((start,end,value))
 
     # Replace from right to left so positions remain valid.
-    for start, end in sorted(
+    for start, end, value in sorted(
         replacements,
         key=lambda x: x[0],
         reverse=True,
     ):
-        text = text[:start] + f"[[|{text[start:end]}|]]" + text[end:]
+        text = text[:start] + f"[[|{value}|]]" + text[end:]
 
     return text
 
@@ -166,7 +167,7 @@ class TechnicismExpert:
 
         # Determine if there's any occurrences for each form
         for form, occurrences in grouped.items():
-            positions = [match.start() for match in re.finditer(rf"\b{re.escape(form)}\b", technicism_input.text, re.IGNORECASE)]
+            positions = [match.start() for match in re.finditer(rf"\b{r"[ \n]{1,2}".join(re.escape(x) for x in re.split(r"\s+", form))}\b", technicism_input.text, re.IGNORECASE)]
 
             if len(positions) != 0:
                 positions.sort()
@@ -184,4 +185,34 @@ class TechnicismExpert:
                 if occurrence not in unresolved
             ]
 
-        return technicisms
+        # Remove technicisms inside other technicisms
+        all_occurrences = []
+
+        for technicism_index, technicism in enumerate(technicisms):
+            for occurrence in technicism.occurrences:
+                all_occurrences.append((technicism_index, occurrence))
+
+        for technicism_index, technicism in enumerate(technicisms):
+            kept = []
+
+            for occurrence in technicism.occurrences:
+                end = occurrence.position + len(occurrence.form)
+
+                contained = False
+
+                for other_index, other in all_occurrences:
+                    other_end = other.position + len(other.form)
+
+                    # Never compare occurrences within the same technicism
+                    if other_index != technicism_index:
+                        # Check if this occurrence is inside another occurrence of another technicism
+                        if other.position <= occurrence.position and end <= other_end:
+                            contained = True
+                            break
+
+                if not contained:
+                    kept.append(occurrence)
+
+            technicism.occurrences = kept
+
+        return [technicism for technicism in technicisms if len(technicism.occurrences) > 0]
