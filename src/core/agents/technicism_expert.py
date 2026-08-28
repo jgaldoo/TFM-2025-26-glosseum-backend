@@ -215,4 +215,5 @@ class TechnicismExpert:
 
             technicism.occurrences = kept
 
-        return [technicism for technicism in technicisms if len(technicism.occurrences) > 0]
+        return [technicism for technicism in technicisms
+                if len(technicism.occurrences) > 0 and len(technicism.definitions) > 0]
