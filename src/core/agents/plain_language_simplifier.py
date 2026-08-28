@@ -259,5 +259,6 @@ class PlainLanguageSimplifier:
                         yield remainder
                     elif re.search(r"^.*\n", title_buffer):
                         is_title_filtered = True
+                        yield title_buffer
                 else:
                     yield output
